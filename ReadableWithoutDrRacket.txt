@@ -1,0 +1,1122 @@
+;;> Total: 90/90
+;;> Good job!!
+
+(require 2htdp/image)
+(require 2htdp/universe)
+
+;; template:
+;;location-temp: Location -> ???
+#;(define (location-temp a-location)
+  (... (posn-x a-location)...)
+  (... (posn-y a-location)...))
+
+;; A Direction is one of: 
+;; - 'left 
+;; - 'right
+;; - 'up
+;; - 'down
+;; INTERP: represent the direction of movement for any Component
+
+;; Template 
+;; direction-temp: Direction -> ??? 
+#;(define (direction-temp a-direction)
+  (cond 
+    [(symbol=? a-direction 'left) ...]
+    [(symbol=? a-direction 'right) ...]
+    [(symbol=? a-direction 'up) ...]
+    [(symbol=? a-direction 'down) ...]))
+
+
+(define-struct component (location speed direction im))
+;; a Component is a (make-component Posn NonNegInt Direction Image)
+;; examples of such are ships, invader, invader bullets, ship bullets
+
+;; template: Component -> ???
+#;(define (component-temp a-component)
+    (... posn-temp(component-location a-component)...)
+    (... (component-speed a-component)...)
+    (... direction-temp(component-direction a-component)...)
+    (... (component-im a-component)...))
+
+
+;; A List of Components (LoC) is one of 
+;; - empty 
+;; - (cons Component LoC)
+;; INTERP: an amount of components from empty to any specified amount.         
+;; Template: LoC: LoC -> ???
+#;(define (loc-temp a-loc)
+    (cond
+      [(empty? a-loc) ...]
+      [(cons? a-loc)...posn-temp(first a-loc)
+                     ...(loc-temp (rest a-loc))]))
+
+;; For purposes of grading I have also included this data definition:
+
+;; A [List-of X] (LoX) is one of:
+;; - empty
+;; - (cons X LoX)
+;; INTERP: X can be any racket value
+;; Template: LoX: LoX -> ???
+#;(define (lox-temp a-loc)
+    (cond
+      [(empty? a-lox) ...]
+      [(cons? a-lox)...posn-temp(first a-lox)
+                     ...(loc-temp (rest a-lox))]))
+
+(define-struct world (ship invaders ship-bullets invader-bullets))
+;; A World is (make-world Component LoC LoC LoC) 
+;; INTERP: represent the ship, the current list of invaders,
+;; the inflight spaceship bullets and the inflight invader bullets
+
+;; template:
+;; world-temp: World -> ???
+#;(define (world-temp a-world)
+  ((ship-temp(world-ship a-world)...))
+  ((loc-temp(world-invaders a-world))...)
+  ((loc-temp(world-ship-bullets a-world))...)
+  ((loc-temp(world-invader-bullets a-world))...))
+  
+                               ;; CONSTANTS ;;
+;;--------------------------------------------------------------------------
+
+(define WIDTH 500) 
+(define HEIGHT 500) 
+
+(define MAX-SHIP-BULLETS 3)
+
+(define MAX-INVADER-BULLETS 15)
+
+;;(define BACKGROUND (empty-scene WIDTH HEIGHT))
+(define BACKGROUND .)
+(define GAME-OVER .)
+  
+
+(define SPACESHIP-BULLET-IMAGE (circle 2 'solid 'purple))
+
+(define SHIP-WIDTH 25)
+
+(define SHIP-HEIGHT 15)
+
+;; (define SPACESHIP-IMAGE (rectangle SHIP-WIDTH SHIP-HEIGHT 'solid 'black))
+(define SPACESHIP-IMAGE .)
+
+(define INVADER-SIDE 20)
+
+;;(define INVADER-IMAGE (square INVADER-SIDE 'solid 'red))
+(define INVADER-IMAGE .)
+
+(define INVADER-BULLET-IMAGE (circle 2 'solid 'red))
+
+(define SPACESHIP-SPEED 10)
+
+(define BULLET-SPEED 10)
+
+(define SPEED-INVADER 3)
+(define INVADER-Y-SPEED .25)
+
+(define SHIP-INIT (list
+                   (make-component (make-posn 250 480) SPACESHIP-SPEED 'left
+                                  SPACESHIP-IMAGE)))
+(define SHIP-TEST-RIGHT (list
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE)))
+(define SHIP-TEST-LEFTB (list
+  (make-component (make-posn 12.5 480)
+                  SPACESHIP-SPEED 'left SPACESHIP-IMAGE)))
+(define SHIP-TEST-RIGHTB (list
+  (make-component (make-posn 487.5 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE)))
+(define SHIP-INITD (list
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE)))
+(define SHIP-TEST-RIGHTD (list
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'left SPACESHIP-IMAGE)))
+(define SHIP-TEST-LEFTBD (list
+  (make-component (make-posn 12.5 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE)))
+(define SHIP-TEST-RIGHTBD (list
+  (make-component (make-posn 487.5 480)
+                  SPACESHIP-SPEED 'left SPACESHIP-IMAGE)))
+(define SHIP-INIT1
+  (make-component (make-posn 250 480) SPACESHIP-SPEED 'left
+                                  SPACESHIP-IMAGE))
+(define SHIP-INITD1
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE))
+(define SHIP-TEST-RIGHT1
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'right SPACESHIP-IMAGE))
+(define SHIP-TEST-RIGHTD1
+  (make-component (make-posn 250 480)
+                  SPACESHIP-SPEED 'left SPACESHIP-IMAGE))
+
+(define INVADERS-INIT 
+   (list (make-component (make-posn 100 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 100 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 50) SPEED-INVADER 'left INVADER-IMAGE) 
+         (make-component (make-posn 180 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 50) SPEED-INVADER 'left INVADER-IMAGE) 
+         (make-component (make-posn 100 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 100 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 110) SPEED-INVADER 'left
+                         INVADER-IMAGE)))
+  
+(define INVADERS-INIT-MINUS1
+   (list (make-component (make-posn 100 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 100 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 50) SPEED-INVADER 'left INVADER-IMAGE) 
+         (make-component (make-posn 180 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 50) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 50) SPEED-INVADER 'left INVADER-IMAGE) 
+         (make-component (make-posn 100 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 80) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 100 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 220 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 260 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 300 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 340 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 380 110) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 420 110) SPEED-INVADER 'left
+                         INVADER-IMAGE)))
+
+(define INVADER-SMALL-LIST
+  (list (make-component (make-posn 100 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 20) SPEED-INVADER 'left INVADER-IMAGE)))
+(define INVADER-SMALLER-LIST
+    (list (make-component (make-posn 100 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 20) SPEED-INVADER 'left INVADER-IMAGE)))
+
+(define WORLD-INIT (make-world SHIP-INIT INVADERS-INIT empty empty))
+(define WORLDBULLETS
+  (make-world SHIP-INIT INVADER-SMALL-LIST
+              (list (make-component
+                     (make-posn 40 40) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                    (make-component
+                     (make-posn 50 50) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+              (list (make-component
+                     (make-posn 140 140) BULLET-SPEED 'down
+                     INVADER-BULLET-IMAGE)
+                    (make-component
+                     (make-posn 150 150)
+                     BULLET-SPEED 'down INVADER-BULLET-IMAGE))))
+(define WORLDBULLETS1
+  (make-world SHIP-TEST-RIGHT INVADER-SMALL-LIST
+              (list (make-component (make-posn 40 40)
+                                    BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                    (make-component (make-posn 50 50)
+                                    BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+              (list (make-component (make-posn 140 140)
+                                    BULLET-SPEED 'down INVADER-BULLET-IMAGE)
+                    (make-component (make-posn 150 150)
+                                    BULLET-SPEED 'down INVADER-BULLET-IMAGE))))
+;--------------------------------------------------------------------------
+;; DRAW-WORLD SECTION
+;__________________________________________________________________________
+
+;; draw-world: World -> Image
+;; Draws the current state of the world (Ship, LoI, LoB from spaceship and
+;; LoB from invaders)
+
+;; tests
+;; This test is only for printing the ship and invaders of the world 
+(check-expect (draw-world WORLD-INIT)
+              (place-image SPACESHIP-IMAGE
+                           (posn-x (component-location
+                                    (first (world-ship WORLD-INIT))))
+                           (posn-y (component-location
+                                    (first (world-ship WORLD-INIT))))
+               (place-image INVADER-IMAGE 100 20
+               (place-image INVADER-IMAGE 140 20
+               (place-image INVADER-IMAGE 180 20
+               (place-image INVADER-IMAGE 220 20
+               (place-image INVADER-IMAGE 260 20
+               (place-image INVADER-IMAGE 300 20
+               (place-image INVADER-IMAGE 340 20
+               (place-image INVADER-IMAGE 380 20
+               (place-image INVADER-IMAGE 420 20
+               (place-image INVADER-IMAGE 100 50
+               (place-image INVADER-IMAGE 140 50
+               (place-image INVADER-IMAGE 180 50
+               (place-image INVADER-IMAGE 220 50
+               (place-image INVADER-IMAGE 260 50
+               (place-image INVADER-IMAGE 300 50
+               (place-image INVADER-IMAGE 340 50
+               (place-image INVADER-IMAGE 380 50
+               (place-image INVADER-IMAGE 420 50
+               (place-image INVADER-IMAGE 100 80
+               (place-image INVADER-IMAGE 140 80
+               (place-image INVADER-IMAGE 180 80
+               (place-image INVADER-IMAGE 220 80
+               (place-image INVADER-IMAGE 260 80
+               (place-image INVADER-IMAGE 300 80
+               (place-image INVADER-IMAGE 340 80
+               (place-image INVADER-IMAGE 380 80
+               (place-image INVADER-IMAGE 420 80
+               (place-image INVADER-IMAGE 100 110
+               (place-image INVADER-IMAGE 140 110
+               (place-image INVADER-IMAGE 180 110
+               (place-image INVADER-IMAGE 220 110
+               (place-image INVADER-IMAGE 260 110
+               (place-image INVADER-IMAGE 300 110
+               (place-image INVADER-IMAGE 340 110
+               (place-image INVADER-IMAGE 380 110
+               (place-image INVADER-IMAGE 420 110
+                            BACKGROUND))))))))))))))))))))))))))))))))))))))
+
+;; This test includes the all the possible components of the draw-world:
+;; i.e. Spaceship, Invaders, spaceship bullets (LoB), and invader bullets(LoB))
+
+(check-expect
+   (draw-world
+    (make-world SHIP-INIT INVADERS-INIT
+                (list (make-component
+                 (make-posn 300 480)
+                 BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                (make-component
+                 (make-posn 300 460)
+                 BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+                (list
+                 (make-component
+                  (make-posn 250 250)
+                  BULLET-SPEED 'down INVADER-BULLET-IMAGE)
+                 (make-component
+                  (make-posn 260 260)
+                  BULLET-SPEED 'down INVADER-BULLET-IMAGE))))
+   (place-image SPACESHIP-IMAGE
+                (posn-x (component-location (first (world-ship WORLD-INIT))))
+                (posn-y (component-location (first (world-ship WORLD-INIT))))
+                (place-image INVADER-IMAGE 100 20
+               (place-image INVADER-IMAGE 140 20
+               (place-image INVADER-IMAGE 180 20
+               (place-image INVADER-IMAGE 220 20
+               (place-image INVADER-IMAGE 260 20
+               (place-image INVADER-IMAGE 300 20
+               (place-image INVADER-IMAGE 340 20
+               (place-image INVADER-IMAGE 380 20
+               (place-image INVADER-IMAGE 420 20
+               (place-image INVADER-IMAGE 100 50
+               (place-image INVADER-IMAGE 140 50
+               (place-image INVADER-IMAGE 180 50
+               (place-image INVADER-IMAGE 220 50
+               (place-image INVADER-IMAGE 260 50
+               (place-image INVADER-IMAGE 300 50
+               (place-image INVADER-IMAGE 340 50
+               (place-image INVADER-IMAGE 380 50
+               (place-image INVADER-IMAGE 420 50
+               (place-image INVADER-IMAGE 100 80
+               (place-image INVADER-IMAGE 140 80
+               (place-image INVADER-IMAGE 180 80
+               (place-image INVADER-IMAGE 220 80
+               (place-image INVADER-IMAGE 260 80
+               (place-image INVADER-IMAGE 300 80
+               (place-image INVADER-IMAGE 340 80
+               (place-image INVADER-IMAGE 380 80
+               (place-image INVADER-IMAGE 420 80
+               (place-image INVADER-IMAGE 100 110
+               (place-image INVADER-IMAGE 140 110
+               (place-image INVADER-IMAGE 180 110
+               (place-image INVADER-IMAGE 220 110
+               (place-image INVADER-IMAGE 260 110
+               (place-image INVADER-IMAGE 300 110
+               (place-image INVADER-IMAGE 340 110
+               (place-image INVADER-IMAGE 380 110
+               (place-image INVADER-IMAGE 420 110
+               (place-image
+                SPACESHIP-BULLET-IMAGE 300 480
+               (place-image SPACESHIP-BULLET-IMAGE 300 460
+               (place-image INVADER-BULLET-IMAGE 250 250
+               (place-image
+                INVADER-BULLET-IMAGE
+                260 260 BACKGROUND))))))))))))))))))))))))))))))))))))))))))
+
+                                           
+(define (draw-world a-world)
+  (draw-anything
+   (world-ship a-world)
+   (draw-anything
+    (world-invaders a-world)
+    (draw-anything
+     (world-ship-bullets a-world) 
+     (draw-anything
+      (world-invader-bullets a-world)
+      BACKGROUND)))))
+
+;; draw-anything: [List-of Components] Image -> Image
+;; draws a list of components onto a given background
+
+(check-expect (draw-anything INVADERS-INIT BACKGROUND)
+              (place-image INVADER-IMAGE 100 20
+               (place-image INVADER-IMAGE 140 20
+               (place-image INVADER-IMAGE 180 20
+               (place-image INVADER-IMAGE 220 20
+               (place-image INVADER-IMAGE 260 20
+               (place-image INVADER-IMAGE 300 20
+               (place-image INVADER-IMAGE 340 20
+               (place-image INVADER-IMAGE 380 20
+               (place-image INVADER-IMAGE 420 20
+               (place-image INVADER-IMAGE 100 50
+               (place-image INVADER-IMAGE 140 50
+               (place-image INVADER-IMAGE 180 50
+               (place-image INVADER-IMAGE 220 50
+               (place-image INVADER-IMAGE 260 50
+               (place-image INVADER-IMAGE 300 50
+               (place-image INVADER-IMAGE 340 50
+               (place-image INVADER-IMAGE 380 50
+               (place-image INVADER-IMAGE 420 50
+               (place-image INVADER-IMAGE 100 80
+               (place-image INVADER-IMAGE 140 80
+               (place-image INVADER-IMAGE 180 80
+               (place-image INVADER-IMAGE 220 80
+               (place-image INVADER-IMAGE 260 80
+               (place-image INVADER-IMAGE 300 80
+               (place-image INVADER-IMAGE 340 80
+               (place-image INVADER-IMAGE 380 80
+               (place-image INVADER-IMAGE 420 80
+               (place-image INVADER-IMAGE 100 110
+               (place-image INVADER-IMAGE 140 110
+               (place-image INVADER-IMAGE 180 110
+               (place-image INVADER-IMAGE 220 110
+               (place-image INVADER-IMAGE 260 110
+               (place-image INVADER-IMAGE 300 110
+               (place-image INVADER-IMAGE 340 110
+               (place-image INVADER-IMAGE 380 110
+               (place-image INVADER-IMAGE 420 110
+                            BACKGROUND)))))))))))))))))))))))))))))))))))))
+
+(define (draw-anything a-loc a-bg) 
+  (local [;; Component Image -> Image
+          ;; draws a Component on a given bg
+          (define (draw-something a-comp a-bg)
+            (place-image (component-im a-comp)
+                         (posn-x (component-location a-comp))
+                         (posn-y (component-location a-comp)) a-bg))]
+    (foldr draw-something a-bg a-loc)))
+
+  
+
+;--------------------------------------------------------------------------
+;; MOVE WORLD SECTION and ON-KEY SECTION
+;__________________________________________________________________________
+
+
+;; move-world: World -> World
+;; Purpose: moves the moving parts of the world (includes spaceship, invaders,
+;; ship bullets, and invader bullets)
+
+;; tests
+
+;; tests a world filled with all the possible components of the world
+;; (ship, invaders, ship bullets, and invader bullets)
+#;(check-random (move-world WORLDBULLETS)
+              (make-world
+               (move-components SHIP-INIT)
+               (move-components INVADER-SMALL-LIST)
+               (move-components (world-ship-bullets WORLDBULLETS))
+               (move-components (invaders-fire
+                                 (world-invader-bullets WORLDBULLETS)
+                                 (world-invaders WORLDBULLETS)))))
+
+;; tests the initial world
+#;(check-random (move-world WORLD-INIT)
+              (make-world
+               (move-components SHIP-INIT)
+               INVADERS-INIT
+               (move-components (world-ship-bullets WORLD-INIT))
+               (move-components
+                (invaders-fire (world-invader-bullets WORLD-INIT)
+                               INVADERS-INIT))))
+
+
+;; define
+(define (move-world a-world)
+  (make-world
+   (move-components (world-ship a-world))
+   (move-components (world-invaders a-world))
+   (move-components (world-ship-bullets a-world))
+   (move-components (invaders-fire (world-invader-bullets a-world)
+                                        (world-invaders a-world)))))
+
+
+;; move-component: Component -> Component
+;; moves any component of the world (bullets of both types, ship, invaders) by
+;; it's own characteristics (component-direction and component-speed)
+
+;; constraints: does not allow any component to exit the screen right (x = 0)
+;; and left (x = WIDTH) boundaries on the X axis of the BACKGROUND.
+
+;; tests
+
+;; test components:
+(define COMP1 (make-component
+               (make-posn 450 480) SPACESHIP-SPEED 'left SPACESHIP-IMAGE))
+(define COMP2 (make-component
+               (make-posn (- 450 SPACESHIP-SPEED) 480)
+               SPACESHIP-SPEED 'left SPACESHIP-IMAGE))
+(define COMP3 (make-component
+               (make-posn 450 480) SPACESHIP-SPEED 'right SPACESHIP-IMAGE))
+(define COMP4 (make-component
+               (make-posn (+ 450 SPACESHIP-SPEED) 480)
+               SPACESHIP-SPEED 'right SPACESHIP-IMAGE))
+(define COMP5 (make-component
+               (make-posn 450 480) SPACESHIP-SPEED 'up SPACESHIP-IMAGE))
+(define COMP6 (make-component
+               (make-posn 450 (- 480 SPACESHIP-SPEED))
+               SPACESHIP-SPEED 'up SPACESHIP-IMAGE))
+(define COMP7 (make-component
+               (make-posn 450 480) SPACESHIP-SPEED 'down SPACESHIP-IMAGE))
+(define COMP8 (make-component
+               (make-posn 450 (+ 480 SPACESHIP-SPEED))
+               SPACESHIP-SPEED 'down SPACESHIP-IMAGE)) 
+;; tests
+(check-expect (move-component COMP1) COMP2)
+(check-expect (move-component COMP3) COMP4)
+(check-expect (move-component COMP5) COMP6)
+(check-expect (move-component COMP7) COMP8)
+(check-expect (move-component
+               (make-component (make-posn 500 480) SPACESHIP-SPEED
+                               'right SPACESHIP-IMAGE))
+              (make-component (make-posn 500 480) SPACESHIP-SPEED
+                              'right SPACESHIP-IMAGE))
+
+(define (move-component a-comp)
+  (make-component (cond
+                    [(and (symbol=? (component-direction a-comp) 'left)
+                          (> (posn-x (component-location a-comp))
+                             (/ SHIP-WIDTH 2))
+                          (image=? (component-im a-comp) SPACESHIP-IMAGE))
+                     (make-posn
+                      (- (posn-x (component-location a-comp))
+                         (component-speed a-comp))
+                      (posn-y (component-location a-comp)))]
+                    [(and (symbol=? (component-direction a-comp) 'right)
+                          (< (posn-x (component-location a-comp))
+                             (- WIDTH (/ SHIP-WIDTH 2)))
+                          (image=? (component-im a-comp) SPACESHIP-IMAGE))
+                     (make-posn
+                      (+ (posn-x (component-location a-comp))
+                         (component-speed a-comp))
+                      (posn-y (component-location a-comp)))]
+                    [(and (symbol=? (component-direction a-comp) 'left)
+                          (> (posn-x (component-location a-comp))
+                             (/ SHIP-WIDTH 2))
+                          (image=? (component-im a-comp) INVADER-IMAGE))
+                     (make-posn
+                      (- (posn-x (component-location a-comp))
+                         (component-speed a-comp))
+                      (+ (posn-y (component-location a-comp))
+                         INVADER-Y-SPEED))]
+                    [(and (symbol=? (component-direction a-comp) 'right)
+                          (< (posn-x (component-location a-comp))
+                             (- WIDTH (/ SHIP-WIDTH 2)))
+                          (image=? (component-im a-comp) INVADER-IMAGE))
+                     (make-posn
+                      (+ (posn-x (component-location a-comp))
+                         (component-speed a-comp))
+                      (+ (posn-y (component-location a-comp))
+                         INVADER-Y-SPEED))]
+                    [(symbol=? (component-direction a-comp) 'up)
+                     (make-posn (posn-x (component-location a-comp))
+                                (- (posn-y (component-location a-comp))
+                                   (component-speed a-comp)))]
+                    [(symbol=? (component-direction a-comp) 'down)
+                     (make-posn (posn-x (component-location a-comp))
+                                (+ (posn-y (component-location a-comp))
+                                   (component-speed a-comp)))]
+                    [else (make-posn
+                           (posn-x (component-location a-comp))
+                           (posn-y (component-location a-comp)))])
+                  (component-speed a-comp)
+                  (cond
+                    [(and (image=? (component-im a-comp) INVADER-IMAGE)
+                             (< (posn-x (component-location a-comp))
+                             (/ SHIP-WIDTH 2))
+                             (symbol=? (component-direction a-comp) 'left))
+                     'right]
+                    [(and (image=? (component-im a-comp) INVADER-IMAGE)
+                             (> (posn-x (component-location a-comp))
+                             (- WIDTH (/ SHIP-WIDTH 2)))
+                             (symbol=? (component-direction a-comp) 'right))
+                     'left]
+                    [else (component-direction a-comp)])
+                  (component-im a-comp)))
+
+
+
+
+;; move-components: List-of-Components -> List-of-Components
+;; moves all the components of a list
+
+;; tests
+(check-expect (move-components (list COMP1 COMP3)) (list COMP2 COMP4))
+
+(define (move-components aloc)
+  (map move-component aloc))
+
+;; Signature
+;; change-direction: [List-of Component] KeyEvent -> [List-of Component]
+;; Purpose:
+;; Updates the ship's direction if the user presses the left or right
+;; arrow keys.
+
+;; Tests
+
+(check-expect (change-direction SHIP-INIT1 "right") SHIP-INITD1)
+(check-expect (change-direction SHIP-TEST-RIGHT1 "left") SHIP-TEST-RIGHTD1)
+(check-expect (change-direction SHIP-INIT1 "left") SHIP-INIT1)
+(check-expect (change-direction SHIP-INITD1 "right") SHIP-INITD1)
+
+;; Define
+(define (change-direction a-ship key-event)
+    (make-component
+     (make-posn (posn-x (component-location a-ship))
+                (posn-y (component-location a-ship)))
+                SPACESHIP-SPEED
+     (cond 
+       [(key=? key-event "left") 'left]
+       [(key=? key-event "right") 'right])
+         (component-im a-ship)))
+
+;; add-to-world: World Key -> World
+;; purpose: adds components to the world including ship bullets and
+;; the ability for the ship to change direction
+
+;; tests
+(check-expect (add-to-world WORLDBULLETS "right")
+              (make-world SHIP-TEST-RIGHT INVADER-SMALL-LIST
+              (list (make-component
+                     (make-posn 40 40) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                    (make-component
+                     (make-posn 50 50) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+              (list (make-component
+                     (make-posn 140 140) BULLET-SPEED
+                     'down INVADER-BULLET-IMAGE)
+                    (make-component
+                     (make-posn 150 150) BULLET-SPEED
+                     'down INVADER-BULLET-IMAGE))))
+(check-expect (add-to-world WORLDBULLETS1 "left")
+  (make-world SHIP-INIT INVADER-SMALL-LIST
+              (list (make-component
+                     (make-posn 40 40) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                    (make-component
+                     (make-posn 50 50) BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+              (list (make-component
+                     (make-posn 140 140) BULLET-SPEED
+                     'down INVADER-BULLET-IMAGE)
+                    (make-component (make-posn 150 150)
+                                    BULLET-SPEED 'down INVADER-BULLET-IMAGE))))
+(check-expect (add-to-world WORLDBULLETS " ")
+  (make-world SHIP-INIT INVADER-SMALL-LIST
+              (list (make-component
+                     (make-posn 250 480) BULLET-SPEED
+                     'up SPACESHIP-BULLET-IMAGE)
+                    (make-component (make-posn 40 40)
+                                    BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+                    (make-component (make-posn 50 50)
+                                    BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE))
+              (list (make-component (make-posn 140 140)
+                                    BULLET-SPEED 'down INVADER-BULLET-IMAGE)
+                    (make-component (make-posn 150 150)
+                                    BULLET-SPEED 'down INVADER-BULLET-IMAGE))))
+(check-expect (add-to-world WORLD-INIT "j") WORLD-INIT)
+              
+
+(define (add-to-world a-world a-key)
+  (cond
+    [(key=? "left" a-key)
+     (make-world
+      (list (make-component
+        (component-location (first (world-ship a-world)))
+        SPACESHIP-SPEED 'left SPACESHIP-IMAGE))
+       (world-invaders a-world)
+       (world-ship-bullets a-world) (world-invader-bullets a-world))]
+    [(key=? "right" a-key)
+     (make-world
+      (list (make-component
+        (component-location (first (world-ship a-world)))
+        SPACESHIP-SPEED 'right SPACESHIP-IMAGE))
+       (world-invaders a-world)
+       (world-ship-bullets a-world) (world-invader-bullets a-world))]
+    [(and (key=? " " a-key) (< (length (world-ship-bullets a-world))
+                               MAX-SHIP-BULLETS))
+     (make-world (world-ship a-world) (world-invaders a-world)
+                 (add-bullet a-world (world-ship-bullets a-world) " ")
+                 (world-invader-bullets a-world))]
+    [else a-world]))
+
+
+;; add-bullet: World [List-of Components] KeyEvent -> [List-of Components]
+;; purpose: adds a bullet to a list of bullets when the spacebar is hit at
+;; the location of the ship. This is a helper function for add-to-world
+
+
+;; test
+(check-expect (add-bullet WORLD-INIT '() " ")
+              (cons
+               (make-component
+                (make-posn (posn-x (component-location
+                                    (first (world-ship WORLD-INIT))))
+                           (posn-y (component-location
+                                    (first (world-ship WORLD-INIT)))))
+                BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE) '()))
+(check-expect (add-bullet WORLD-INIT (world-ship-bullets WORLD-INIT) "j")
+              '())
+
+;; define
+(define (add-bullet a-world a-lob a-key)
+  (cond
+    [(key=? " " a-key)
+     (cons
+      (make-component
+       (make-posn (posn-x (component-location (first (world-ship a-world))))
+                  (posn-y (component-location (first (world-ship a-world)))))
+       BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)
+      (world-ship-bullets a-world))]
+    [else a-lob]))
+                                      
+
+;invaders-fire:[List-of Components] [List-of Components] -> [List-of Components]
+;; Further interp of signature:
+;; These components are bullets, invaders -> bullets respectively
+;; fire from a random invader to hit the ship (only adds a bullet does not make
+;; bullets move).
+
+(define LIST-TEST (list (make-component (make-posn 10 10) SPEED-INVADER 'left
+                                       INVADER-IMAGE)
+                       (make-component (make-posn 20 20) SPEED-INVADER 'left
+                                       INVADER-IMAGE)))
+
+(check-random (invaders-fire
+                 (list (make-component (make-posn 50 40) BULLET-SPEED 'up
+                                       SPACESHIP-BULLET-IMAGE)
+                       (make-component (make-posn 250 250) BULLET-SPEED 'up
+                                       SPACESHIP-BULLET-IMAGE)) LIST-TEST)
+                (list (make-component
+                       (make-posn (posn-x
+                                   (component-location
+                                    (random-invader LIST-TEST)))
+                                  (posn-y
+                                   (component-location
+                                    (random-invader LIST-TEST))))
+                       BULLET-SPEED 'down INVADER-BULLET-IMAGE)
+                      (make-component (make-posn 50 40) BULLET-SPEED 'up
+                                       SPACESHIP-BULLET-IMAGE)
+                       (make-component (make-posn 250 250) BULLET-SPEED 'up
+                                       SPACESHIP-BULLET-IMAGE)))
+
+
+                 
+             
+(check-random (invaders-fire '() '()) '())
+(check-random (invaders-fire
+               (list
+                (make-component (make-posn 20 20) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 21) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 22) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 23) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 24) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 25) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 26) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 27) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 28) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 29) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 30) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 31) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 32) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 33) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 34) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 35) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 36) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE))
+               INVADERS-INIT)
+              (list
+                (make-component (make-posn 20 20) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 21) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 22) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 23) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 24) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 25) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 26) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 27) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 28) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 29) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 30) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 31) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 32) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 33) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 34) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 35) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE)
+                (make-component (make-posn 20 36) BULLET-SPEED 'up
+                                SPACESHIP-BULLET-IMAGE))) ;; this is the same list of bullets as above
+
+(define (invaders-fire a-lob a-loi)
+  (cond
+    [(empty? a-loi) a-lob]
+    [(and (cons? a-loi) (< (length a-lob) MAX-INVADER-BULLETS))
+     (cons
+      (make-component
+       (make-posn (posn-x (component-location (random-invader a-loi)))
+                  (posn-y (component-location (random-invader a-loi))))
+       BULLET-SPEED 'down INVADER-BULLET-IMAGE) a-lob)]
+    [else a-lob]))
+  
+;; random-invader: [List-of Components] -> Component
+;; selects an invader randomly from a list of invaders (invaders are components)
+;; serves as a helper function for invaders-fire
+
+(check-member-of (random-invader INVADER-SMALL-LIST)
+ (make-component (make-posn 100 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 140 20) SPEED-INVADER 'left INVADER-IMAGE)
+         (make-component (make-posn 180 20) SPEED-INVADER 'left INVADER-IMAGE))
+
+(define (random-invader a-loi)
+  (list-ref a-loi (random (length a-loi))))
+
+;-----------------------------------------------------------------------
+;; remove-hits-and-out-of-bounds: World -> World
+;-----------------------------------------------------------------------
+;; Removes any invaders and spaceship bullets that collide, while also
+;; removing any bullets that are out of bounds.
+
+;; Tests
+
+;; tests if nothing needs to be removed
+(check-expect (remove-hits-and-out-of-bounds WORLD-INIT) WORLD-INIT)
+;; test 2: checks if a bullet and an invader are removed upon collision
+(check-expect (remove-hits-and-out-of-bounds
+               (make-world SHIP-INIT INVADERS-INIT
+                           (list
+                            (make-component (make-posn 140 20) BULLET-SPEED
+                                            'up SPACESHIP-BULLET-IMAGE)
+                            (make-component (make-posn 300 460) BULLET-SPEED
+                                             'up SPACESHIP-BULLET-IMAGE))
+                            (list 
+                            (make-component (make-posn 250 250) BULLET-SPEED
+                                            'down INVADER-BULLET-IMAGE)
+                            (make-component (make-posn 260 260) BULLET-SPEED
+                                             'down INVADER-BULLET-IMAGE))))
+              (make-world SHIP-INIT INVADERS-INIT-MINUS1
+                          (list
+                           (make-component (make-posn 300 460) BULLET-SPEED
+                                             'up SPACESHIP-BULLET-IMAGE))
+                          (list 
+                            (make-component (make-posn 250 250) BULLET-SPEED
+                                            'down INVADER-BULLET-IMAGE)
+                            (make-component (make-posn 260 260) BULLET-SPEED
+                                             'down INVADER-BULLET-IMAGE))))
+                         
+;;test 3: checks if bullets of both kinds are removed
+;; when they are out of bounds
+(check-expect (remove-hits-and-out-of-bounds
+               (make-world SHIP-INIT INVADER-SMALL-LIST
+                           (list
+                            (make-component (make-posn 300 -50)
+                                             BULLET-SPEED
+                                            'up SPACESHIP-BULLET-IMAGE))
+                           (list
+                            (make-component (make-posn 250 250) BULLET-SPEED
+                                            'down INVADER-BULLET-IMAGE)
+                            (make-component (make-posn 260 (+ HEIGHT 50))
+                                            BULLET-SPEED
+                                            'down INVADER-BULLET-IMAGE))))
+              (make-world SHIP-INIT INVADER-SMALL-LIST
+                          '()
+                          (list (make-component (make-posn 250 250) BULLET-SPEED
+                                            'down INVADER-BULLET-IMAGE))))
+
+
+;; define
+(define (remove-hits-and-out-of-bounds a-world)
+  (make-world (world-ship a-world)
+              (remove-components (world-ship-bullets a-world)
+                                     (world-invaders a-world))
+              (bullet-check (remove-components (world-invaders a-world)
+                                     (world-ship-bullets a-world)))
+              (bullet-check (world-invader-bullets a-world))))
+
+;-----------------------------------------------------------------------
+;; Helper Functions for remove-hit-and-out-of-bounds function
+;; includes helper functions for the helper functions
+;-----------------------------------------------------------------------
+
+
+;; bullet-check: List-of-components -> List-of-components
+;; further interp: the relevant components are bullets
+;; removes any  bullets once they go out of bounds
+;; this is a helper fn for remove-hits-and-out-of-bounds
+
+;;tests
+(check-expect (bullet-check
+               (list (make-component (make-posn 100 (+ HEIGHT 50))
+                                      BULLET-SPEED 'down INVADER-BULLET-IMAGE)))
+               '())
+(check-expect (bullet-check
+               (list (make-component (make-posn 100 -50) BULLET-SPEED 'up
+                                      SPACESHIP-BULLET-IMAGE)))
+               '())
+(check-expect (bullet-check '()) '())
+
+;; Define
+(define (bullet-check a-lob)
+  (cond
+    [(empty? a-lob) a-lob]
+    [(cons? a-lob)
+     (if (bullet-out-of-bounds? (first a-lob))
+         (bullet-check (rest a-lob))
+         (cons (first a-lob) (bullet-check (rest a-lob))))]))
+
+
+
+
+
+;; remove-components:
+;; [List-of Components] [List-of Components] -> [List-of Components]
+;; Returns a list of components whose locations are not overlapped by the
+;; locations of the components of a different.
+
+;; tests
+(check-expect (remove-components
+               (list (make-component
+                      (make-posn 140 20)
+                      BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)) INVADERS-INIT)
+              INVADERS-INIT-MINUS1)
+(check-expect (remove-components
+               (list (make-component
+                      (make-posn 480 480)
+                      BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)) INVADERS-INIT)
+              INVADERS-INIT)
+
+(define (remove-components aloc1 aloc2)
+  (local [;; remove-component:
+          ;; Component [List-of Components] -> [List-of Components]
+          ;; returns a list of components, not overlapping with the component
+          (define (remove-component comp1 aloc2)
+    (local [;;hitbox: Component -> Boolean
+            ;; returns true if a component overlaps with the hitbox
+            (define (hitbox comp2)
+              (not
+               (and
+                (<= (- (posn-x (component-location comp1)) (/ INVADER-SIDE 2))
+                    (posn-x (component-location comp2))
+                    (+ (posn-x (component-location comp1)) (/ INVADER-SIDE 2)))
+                (<= (- (posn-y (component-location comp1)) (/ INVADER-SIDE 2))
+                    (posn-y (component-location comp2))
+                    (+ (posn-y (component-location comp1))
+                       (/ INVADER-SIDE 2))))))]
+      (filter hitbox aloc2)))]
+    (foldr remove-component aloc2 aloc1)))
+
+;; bullet-out-of-bounds?: Component -> Boolean
+;; Interp: Component in this case is a bullet
+;; purpose: checks if a bullet is within the boundaries of the game's scene
+;; this will be used as a helper function for removing a bullet from
+;; either an invader or the ship
+
+(check-expect (bullet-out-of-bounds?
+               (make-component (make-posn 100 100)
+                               BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)) #false)
+(check-expect (bullet-out-of-bounds? (make-component (make-posn 450 -10)
+                               BULLET-SPEED 'down INVADER-BULLET-IMAGE)) #true)
+(check-expect (bullet-out-of-bounds?
+               (make-component (make-posn 450 (+ HEIGHT 10))
+                               BULLET-SPEED 'up SPACESHIP-BULLET-IMAGE)) #true)
+
+;; Define
+(define (bullet-out-of-bounds? a-bullet)
+  (or (< (posn-y (component-location a-bullet)) 0)
+      (> (posn-y (component-location a-bullet)) HEIGHT)))
+
+;-----------------------------------------------------------------------
+
+;; ship-hit?: Ship LoB -> Boolean 
+;; true if an invader bullet hits the ship, false otherwise
+
+;; Tests
+
+(check-expect (ship-hit? SHIP-INIT '()) #false)
+(check-expect (ship-hit? SHIP-INIT
+                         (list
+                          (make-component (make-posn 20 20) BULLET-SPEED 'down
+                                          INVADER-BULLET-IMAGE)
+                          (make-component (make-posn 40 40) BULLET-SPEED 'down
+                                          INVADER-BULLET-IMAGE))) #false)
+(check-expect (ship-hit?
+               SHIP-INIT
+               (list (make-component (make-posn 20 20) BULLET-SPEED
+                                     'down INVADER-BULLET-IMAGE)
+                     (make-component (make-posn 40 40) BULLET-SPEED
+                                     'down INVADER-BULLET-IMAGE)
+                     (make-component (make-posn 250 480) BULLET-SPEED
+                                     'down INVADER-BULLET-IMAGE)
+                     (make-component (make-posn 40 400) BULLET-SPEED
+                                     'down INVADER-BULLET-IMAGE))) #true)
+
+;; define
+(define (ship-hit? a-ship a-lob)
+  (cond
+    [(empty? a-lob) #false]
+    [else
+     (or (ship-hit-box a-ship (component-location (first a-lob)))
+      (ship-hit? a-ship (rest a-lob)))]))
+
+
+;--------------------------------------
+;; ship-hit-box Component Component -> Boolean
+;; specifically: Ship Bullet -> Boolean
+;; check if a bullet is within the hitbox of an invader
+;; is a helper-function for shit-hit-box
+
+;; test:
+(check-expect (ship-hit-box SHIP-INIT (make-posn 160 160)) #false)
+(check-expect (ship-hit-box SHIP-INIT (make-posn 140 20)) #false)
+(check-expect (ship-hit-box SHIP-INIT (make-posn 155 165)) #false)
+(check-expect (ship-hit-box SHIP-INIT (make-posn 250 480)) #true)
+
+;; code
+(define (ship-hit-box a-ship a-bullet)
+  (and (<=
+        (- (posn-x (component-location (first a-ship))) (/ SHIP-WIDTH 2))
+        (posn-x a-bullet)
+        (+ (posn-x (component-location (first a-ship))) (/ SHIP-WIDTH 2)))
+       (<=
+        (- (posn-y (component-location (first a-ship))) (/ SHIP-HEIGHT 2))
+        (posn-y a-bullet)
+        (+ (posn-y (component-location (first a-ship))) (/ SHIP-HEIGHT 2)))))
+
+
+;--------------------------------------------------------------------    
+;; move-and-remove: World -> World
+;; moves all the world components and removes any invaders/bullets
+;; (both are components) that overlap. Combines the utility of both move-world
+;; and remove-hit-and-out-of-bounds into one function
+
+;; tests
+(check-random (move-and-remove WORLD-INIT)
+              (remove-hits-and-out-of-bounds (move-world WORLD-INIT)))
+(check-random (move-and-remove WORLDBULLETS)
+             (remove-hits-and-out-of-bounds (move-world WORLDBULLETS)))
+
+(define (move-and-remove a-world)
+  (remove-hits-and-out-of-bounds (move-world a-world)))
+
+;; end-game: World -> Boolean
+;; checks if the game needs to end by the conditions of either
+;; the ship getting hit by an invader bullet, or all
+;; the invaders having been defeated. Returns True if
+;; game should end, or false if it should continue
+
+;; an invader bullet at the SHIP-INIT's location
+(define DBULLET (list (make-component
+                 (make-posn 250 480) BULLET-SPEED 'down INVADER-BULLET-IMAGE)))
+(check-expect (end-game (make-world SHIP-INIT INVADERS-INIT '()
+                        DBULLET)) #true)
+(check-expect (end-game (make-world SHIP-INIT '() '() '())) #true)
+(check-expect (end-game WORLD-INIT) #false)
+
+(define (end-game a-world)
+         (or (empty? (world-invaders a-world))
+             (ship-hit? (world-ship a-world) (world-invader-bullets a-world))))
+(define GAME-OVER-TEXT (text/font "GAME OVER"	 	 	 	 
+ 	 	64	 	 	 	 
+ 	 	"green"	 	 	 	 
+ 	 	#false	 	 	 	 
+ 	 	'modern	 	 	 	 
+ 	 	'normal	 	 	 	 
+ 	 	'normal	 	 	 	 
+ 	 	#false))
+(define (last-pic a-world)
+  (if (end-game a-world)
+      (place-image GAME-OVER-TEXT 250 250 BACKGROUND) a-world))
+
+
+
+;; main: World -> World
+;; launches the World animation (i.e the Space-Invaders game)
+(define (main a-world)
+  (big-bang a-world
+            [to-draw draw-world]
+            [on-tick move-and-remove 0.05]
+            [on-key add-to-world]
+            [stop-when end-game last-pic]))
+(main WORLD-INIT)
